@@ -1,0 +1,22 @@
+AddHandler		cgi-script .cgi
+DirectoryIndex	index.cgi
+Options			+ExecCGI -Indexes
+
+#RewriteEngine	On
+#RewriteCond	%{HTTPS} !=on
+#RewriteRule	(.*) https://%{HTTP_HOST}%{REQUEST_URI}
+
+AuthType		Digest
+AuthName		"Remotemark-KAI2"
+AuthUserFile	/home/t-yamada/.digest_pw
+<RequireAny>
+	Require		valid-user
+	Require		ip ::1
+	Require		ip 127.0.0.1
+	Require		ip 10
+	Require		ip 172.16.0.0/12
+	Require		ip 192.168
+</RequireAny>
+
+# https://httpd.apache.org/docs/2.4/mod/mod_auth_digest.html
+# $ htdigest +c ~/.digest_pw "Remotemark-KAI2" t-yamada
