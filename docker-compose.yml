@@ -2,7 +2,7 @@ version: '3'
 services:
     remotemark:
         image:
-            remotemark
+            docker.io/furutanian/remotemark
         container_name:
             remotemark_alpha
         build:
