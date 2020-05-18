@@ -13,6 +13,7 @@ RUN set -x \
 		git \
 		procps-ng \
 		net-tools \
+		diffutils \
 	&& rm -rf /var/cache/dnf/* \
 	&& dnf clean all
 
