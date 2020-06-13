@@ -19,5 +19,11 @@ AuthUserFile	/home/t-yamada/.digest_pw
 	Require		ip 192.168
 </RequireAny>
 
+# HTTP_ prefix for suexec...
+#SetEnv			HTTP_DATABASE_SERVICE_NAME	postgresql
+#SetEnv			HTTP_POSTGRESQL_DATABASE	sampledb
+#SetEnv			HTTP_POSTGRESQL_USER		pg_user
+#SetEnv			HTTP_POSTGRESQL_PASSWORD	pg_password
+
 # https://httpd.apache.org/docs/2.4/mod/mod_auth_digest.html
 # $ htdigest +c ~/.digest_pw "Remotemark-KAI2" t-yamada

@@ -3,7 +3,7 @@
 =begin
 
 	Remote Bookmark
-	Copyright (C) 2002-2019 Furutanian
+	Copyright (C) 2002-2020 Furutanian
 
 	This program is free software: you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 =end
 
 require 'cgi'
-require 'sqlite3'
 require './html.rb'
 require './http_info.rb'
 
@@ -39,18 +38,30 @@ end
 cgi = CGI.new
 user = cgi.params['user'][0] || 'nobody'
 
-db = SQLite3::Database.new('data/remote_bookmark.db')
+unless(pg_name = ENV[it = 'POSTGRESQL_DATABASE'] || ENV['HTTP_%s' % it])
+	require 'sqlite3'
+	db = SQLite3::Database.new('data/remote_bookmark.db')
+	is_exist_table	= 'sqlite_master'
+	is_exist_field	= 'name'
+	type_autoinc	= 'integer'
+else
+	require './pg_compat.rb'
+	db = PG.connect(PG.connect_args)
+	is_exist_table	= 'information_schema.tables'
+	is_exist_field	= 'table_name'
+	type_autoinc	= 'serial'
+end
 db.results_as_hash = true
 
-if(db.execute("select name from sqlite_master where name = 'bookmarks'").size == 0)
-	db.execute("create table bookmarks (id integer, title text, uri text, primary key(id))")
+if(db.execute("select * from %s where %s = 'bookmarks'" % [is_exist_table, is_exist_field]).size == 0)
+	db.execute("create table bookmarks (id integer, title text, uri text, primary key(id))" % type_autoinc)
 	db.execute("create index bookmarks_title on bookmarks (title asc)")
 	db.execute("insert into bookmarks (id, title, uri) values(1, 'Yahoo! JAPAN', 'http://www.yahoo.co.jp/')")
 end
-if(db.execute("select name from sqlite_master where name = 'tracks_%s'" % user).size == 0)
-	db.execute("create table tracks_%s (id integer, history integer, folder integer, primary key(id))" % user)
+if(db.execute("select * from %s where %s = 'tracks_%s'" % [is_exist_table, is_exist_field, user]).size == 0)
+	db.execute("create table tracks_%s (id %s, history integer, folder integer, primary key(id))" % [user, type_autoinc])
 	db.execute("insert into tracks_%s (id, history) values(1, 1)" % user)
-	db.execute("create table folders_%s (id integer, label text, exposure integer, position integer, primary key(id))" % user)
+	db.execute("create table folders_%s (id %s, label text, exposure integer, position integer, primary key(id))" % [user, type_autoinc])
 	db.execute("insert into folders_%s (id, label, exposure) values(1, 'Visited', 99999)" % user)
 	db.execute("insert into folders_%s (id, label, exposure) values(2, 'UnVisited', 0)" % user)
 end
@@ -68,7 +79,7 @@ if(cgi.params['command'][0] == '   set   ')
 			http = HTTP_info.new(uri.host, 80, proxy_host, proxy_port, proxy_user, proxy_pass)
 			http.start {|session| session.get(uri.path, uri.query) }
 			db.transaction {
-				db.execute("insert into bookmarks (id, uri, title) values(null, '%s', '%s')" % [uri.to_s, http.info['title'].gsub("'", "''")])
+				db.execute("insert into bookmarks (uri, title) values('%s', '%s')" % [uri.to_s, http.info['title'].gsub("'", "''")])
 				id = db.execute("select id from bookmarks where uri = '%s'" % uri.to_s)
 				db.execute("insert into tracks_%s (id, history) values(%s, (select max(history) from tracks_%s) + 1)" % [user, id[0]['id'], user])
 			}
@@ -91,7 +102,7 @@ if(cgi.params['command'][0] == '   set   ')
 			db.execute("update folders_%s set label = '%s' where id = %s" % [user, it, folder[0]])
 		elsif((ids = cgi.params['id']).size > 1)				# make new folder
 			db.transaction {
-				db.execute("insert into folders_%s (id, label, exposure) values(null, '%s', 99999)" % [user, it])
+				db.execute("insert into folders_%s (label, exposure) values('%s', 99999)" % [user, it])
 				folder_id = db.execute("select id from folders_%s where label = '%s'" % [user, it])
 				ids.each {|id|
 					db.execute("update tracks_%s set folder = %s where id = %s" % [user, folder_id[0]['id'], id])
@@ -274,4 +285,5 @@ html.start('Remote Bookmark[%s]' % user, javascript) {
 			}
 		}
 	}
+	html.raw('%s backend.<BR>' % [pg_name ? 'PostgreSQL' : 'SQLite'])
 }

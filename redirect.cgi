@@ -1,13 +1,18 @@
 #!/usr/bin/env ruby
 
 require 'cgi'
-require 'sqlite3'
 
 cgi  = CGI.new
 user = cgi.params['user'][0]
 id   = cgi.params['id'][0]
 
-db = SQLite3::Database.new('data/remote_bookmark.db')
+unless(pg_name = ENV[it = 'POSTGRESQL_DATABASE'] || ENV['HTTP_%s' % it])
+	require 'sqlite3'
+	db = SQLite3::Database.new('data/remote_bookmark.db')
+else
+	require './pg_compat.rb'
+	db = PG.connect(PG.connect_args)
+end
 
 #---------------------------------------------------------------
 #
